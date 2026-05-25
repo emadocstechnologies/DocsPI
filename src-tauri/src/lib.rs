@@ -2124,3 +2124,5 @@ pub fn run() {
 // feat: add Rust backend with Tauri commands [132601]
 
 // feat: implement PAC server for proxy auto-configuration [132601]
+
+// feat: add Windows registry proxy management [132601]
