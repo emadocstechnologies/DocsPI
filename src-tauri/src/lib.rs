@@ -2126,3 +2126,5 @@ pub fn run() {
 // feat: implement PAC server for proxy auto-configuration [132601]
 
 // feat: add Windows registry proxy management [132601]
+
+// feat: implement DPI bypass with WinDivert integration [132602]
