@@ -2134,3 +2134,5 @@ pub fn run() {
 // feat: implement firewall rule management [132602]
 
 // feat: add system proxy backup and restore [132602]
+
+// feat: implement DNS benchmark tool [132602]
