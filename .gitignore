@@ -1,0 +1,49 @@
+# Project planning (never commit)
+.omo/
+
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build outputs
+dist/
+dist-isolation/
+src-tauri/target/
+src-tauri/binaries/
+binaries/
+target/
+
+# Tauri/Rust
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+.env.*
+
+# Compiled binaries
+*.exe
+*.msi
+*.deb
+*.app
+*.dmg
+*.pdb
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Temporary files
+tmp/
+temp/

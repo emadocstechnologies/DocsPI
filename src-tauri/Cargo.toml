@@ -1,0 +1,51 @@
+[package]
+name = "DocsPI"
+version = "1.0.0"
+description = "DocsPI — DarknesDPI'nin gelismis surumu. DPI bypass araci."
+authors = ["Shencim", "aydocs"]
+edition = "2021"
+
+[lib]
+name = "docspi_tauri_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-opener = "2"
+tauri-plugin-shell = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri-plugin-process = "2"
+tauri-plugin-clipboard-manager = "2.3.2"
+
+local-ip-address = "0.6.10"
+tauri-plugin-notification = "2"
+tauri-plugin-dialog = "2"
+
+# Desktop-only: autostart (not available on mobile)
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-autostart = "2"
+
+# Windows-only: registry, WinAPI
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3", features = [
+    "wininet", "synchapi", "errhandlingapi", "winerror",
+    "processthreadsapi", "securitybaseapi", "handleapi",
+    "winnt", "winuser", "libloaderapi"
+] }
+winreg = "0.52"
+
+# libc for cross-platform system calls (geteuid, kill)
+libc = "0.2"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+panic = "unwind"
+
+// Commit: feat: add Cargo.toml dependencies [132232]
