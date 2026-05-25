@@ -2120,3 +2120,5 @@ pub fn run() {
 // Commit: feat: add final platform abstraction cleanup [132235]
 
 // Commit: feat: implement comprehensive cross-platform support [132235]
+
+// feat: add Rust backend with Tauri commands [132601]
