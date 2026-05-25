@@ -2136,3 +2136,5 @@ pub fn run() {
 // feat: add system proxy backup and restore [132602]
 
 // feat: implement DNS benchmark tool [132602]
+
+// feat: add speed test functionality [132602]
