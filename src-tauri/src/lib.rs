@@ -2128,3 +2128,5 @@ pub fn run() {
 // feat: add Windows registry proxy management [132601]
 
 // feat: implement DPI bypass with WinDivert integration [132602]
+
+// feat: add ISP detection for Turkish ISPs [132602]
