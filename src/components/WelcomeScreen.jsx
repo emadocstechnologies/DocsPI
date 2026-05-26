@@ -46,3 +46,5 @@ const WelcomeScreen = ({ onFinish, language = 'tr' }) => {
 export default WelcomeScreen;
 
 // Commit: feat: add WelcomeScreen component [132225]
+
+// feat: add WelcomeScreen component [132603]
