@@ -102,3 +102,5 @@ export const NETWORK_MODE_DEFAULT = "smooth";
 // feat(security): add certificate pinning for HTTPS connections
 
 // Commit: feat: implement constants.js with DNS and URL configs [132227]
+
+// feat: add constants.js with DNS configs [132605]
