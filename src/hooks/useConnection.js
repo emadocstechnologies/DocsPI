@@ -91,3 +91,5 @@ export function useConnection({ configRef, addLog, t }) {
 }
 
 // Commit: feat: implement useConnection hook [132226]
+
+// feat: add useConnection hook [132604]
