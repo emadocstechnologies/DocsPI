@@ -293,7 +293,12 @@ function AppContent() {
     childProcess, 
     isStartingEngine, 
     retryCount, 
-    userIntentDisconnect 
+    userIntentDisconnect,
+    androidPlatform,
+    vpnActive,
+    vpnBytesRx,
+    vpnBytesTx,
+    stopAndroidVpn,
   } = useEngine({
     configRef,
     setConfig,
@@ -432,6 +437,14 @@ function AppContent() {
 
       userIntentDisconnect.current = true;
       setIsProcessing(true);
+      
+      if (androidPlatform) {
+        await stopAndroidVpn();
+        setIsConnected(false);
+        setIsProcessing(false);
+        updateTrayTooltip("disconnected");
+        return;
+      }
       
       if (childProcess.current) {
         try {

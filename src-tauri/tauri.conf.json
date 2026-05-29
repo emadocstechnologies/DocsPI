@@ -38,7 +38,7 @@
       "binaries/WinDivert.dll": "WinDivert.dll",
       "binaries/WinDivert64.sys": "WinDivert64.sys"
     },
-    "targets": ["nsis", "msi", "app", "dmg", "appimage"],
+    "targets": ["nsis", "msi", "appimage"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -50,12 +50,6 @@
       "nsis": {
         "installerHooks": "hooks.nsi"
       }
-    },
-    "macOS": {
-      "minimumSystemVersion": "11.0",
-      "frameworks": [],
-      "exceptionDomain": "",
-      "entitlements": null
     },
     "linux": {
       "deb": {

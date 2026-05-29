@@ -359,13 +359,91 @@ fn launch_divert_process(config: &DivertConfig) -> Result<(), String> {
 
     }
 
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "linux")]
     {
+        let exe = match divert_exe_path() {
+            Some(p) => p,
+            None => return Err("docspi-divert bulunamadı. AF_PACKET modu için bu dosya gereklidir.".to_string()),
+        };
 
+        let mut args: Vec<String> = vec![];
+
+        args.push("--mode".to_string());
+        args.push(config.mode.clone());
+
+        if config.auto_ttl {
+            args.push("--auto-ttl".to_string());
+        }
+        if config.block_quic {
+            args.push("--block-quic".to_string());
+        }
+        if config.wrong_chksum {
+            args.push("--wrong-chksum".to_string());
+        }
+        if config.wrong_seq {
+            args.push("--wrong-seq".to_string());
+        }
+        if config.dns_redirect && !config.dns_addr.is_empty() {
+            args.push("--dns-redirect".to_string());
+            args.push("--dns-addr".to_string());
+            args.push(config.dns_addr.clone());
+        }
+        if config.proxy_port > 0 {
+            args.push("--proxy-port".to_string());
+            args.push(config.proxy_port.to_string());
+        }
+        if !config.fake_sni.is_empty() {
+            args.push("--fake-sni".to_string());
+            args.push(config.fake_sni.clone());
+        }
+
+        let pid_file = std::env::temp_dir().join("docspi_divert.pid");
+        args.push("--pid-file".to_string());
+        args.push(pid_file.to_string_lossy().to_string());
+
+        let dir = exe.parent()
+            .ok_or_else(|| "Divert exe dizini alınamadı".to_string())?
+            .to_path_buf();
+
+        let mut guard = match divert_process().lock() {
+            Ok(g) => g,
+            Err(e) => e.into_inner(),
+        };
+
+        if guard.is_some() {
+            return Ok(());
+        }
+
+        let log_file = std::env::temp_dir().join("docspi_divert.log");
+        let header = format!("[LAUNCH] exe={}\n[LAUNCH] args={:?}\n", exe.display(), args);
+        let _ = std::fs::write(&log_file, header);
+
+        let stdout_f = std::fs::OpenOptions::new().append(true).open(&log_file).ok();
+        let stderr_f = stdout_f.as_ref().and_then(|f| f.try_clone().ok());
+        let stdout_stdio = stdout_f.map(std::process::Stdio::from).unwrap_or_else(std::process::Stdio::null);
+        let stderr_stdio = stderr_f.map(std::process::Stdio::from).unwrap_or_else(std::process::Stdio::null);
+
+        match std::process::Command::new(&exe)
+            .args(&args)
+            .current_dir(&dir)
+            .stdout(stdout_stdio)
+            .stderr(stderr_stdio)
+            .spawn()
+        {
+            Ok(child) => {
+                let pid = child.id();
+                *guard = Some(child);
+                let _ = std::fs::write(&pid_file, pid.to_string());
+                Ok(())
+            }
+            Err(e) => Err(format!("docspi-divert başlatılamadı: {}", e)),
+        }
+    }
+
+    #[cfg(target_os = "android")]
+    {
         let _ = config;
-
         Ok(())
-
     }
 
 }
@@ -382,6 +460,19 @@ fn stop_divert_process() {
 
     if let Some(ref mut child) = *g {
 
+        // Graceful shutdown: SIGTERM first, then SIGKILL after timeout
+        #[cfg(any(target_os = "linux", target_os = "android"))]
+        {
+            use std::os::unix::process::ExitStatusExt;
+            unsafe { libc::kill(child.id() as i32, libc::SIGTERM); }
+            std::thread::sleep(std::time::Duration::from_millis(1500));
+            match child.try_wait() {
+                Ok(Some(_)) => {}, // already exited
+                _ => { let _ = child.kill(); }
+            }
+        }
+
+        #[cfg(not(any(target_os = "linux", target_os = "android")))]
         let _ = child.kill();
 
     }

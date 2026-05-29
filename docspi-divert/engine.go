@@ -5,8 +5,16 @@ package main
 import (
 	"encoding/binary"
 	"fmt"
+	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
+)
+
+var (
+	shutdownCh = make(chan struct{})
+	sigCh      = make(chan os.Signal, 1)
 )
 
 const (
@@ -55,12 +63,33 @@ func startTTLTableCleaner() {
 // runEngine is the main cross-platform packet processing loop.
 func runEngine(backend PacketBackend, cfg *Config) {
 	startTTLTableCleaner()
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+
 	fmt.Printf("[DocsPIDivert] Engine aktif | Mod: %s | AutoTTL: %v | BlockQUIC: %v | WrongChksum: %v | WrongSeq: %v\n",
 		cfg.Mode, cfg.AutoTTL, cfg.BlockQUIC, cfg.WrongChksum, cfg.WrongSeq)
 
+	go func() {
+		<-sigCh
+		fmt.Println("[DocsPIDivert] Shutdown sinyali alındı, kapatılıyor...")
+		close(shutdownCh)
+		backend.Close()
+	}()
+
 	for {
+		select {
+		case <-shutdownCh:
+			fmt.Println("[DocsPIDivert] Engine durduruldu.")
+			return
+		default:
+		}
+
 		pkt, err := backend.Read()
 		if err != nil {
+			select {
+			case <-shutdownCh:
+				return
+			default:
+			}
 			continue
 		}
 		processPacket(backend, pkt, cfg)

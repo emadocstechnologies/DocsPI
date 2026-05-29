@@ -1,7 +1,19 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Command } from "@tauri-apps/plugin-shell";
 import { DNS_MAP, DOH_MAP, RETRY_DELAYS, APP, DPI_TIMEOUTS } from '../constants';
+
+let cachedIsAndroid = null;
+async function probeAndroidPlatform() {
+  if (cachedIsAndroid !== null) return cachedIsAndroid;
+  try {
+    await invoke('vpn_status');
+    cachedIsAndroid = true;
+  } catch {
+    cachedIsAndroid = false;
+  }
+  return cachedIsAndroid;
+}
 
 export function useEngine({ 
   configRef, 
@@ -32,6 +44,93 @@ export function useEngine({
   const userIntentDisconnect = useRef(false);
   const fatalErrorRef = useRef(false);
   const isRetrying = useRef(false);
+  const [vpnActive, setVpnActive] = useState(false);
+  const [vpnBytesRx, setVpnBytesRx] = useState(0);
+  const [vpnBytesTx, setVpnBytesTx] = useState(0);
+  const vpnPollRef = useRef(null);
+  const [androidPlatform, setAndroidPlatform] = useState(null);
+
+  useEffect(() => {
+    probeAndroidPlatform().then(setAndroidPlatform);
+  }, []);
+
+  useEffect(() => {
+    if (vpnActive) {
+      const poll = setInterval(async () => {
+        try {
+          const status = await invoke('vpn_status');
+          if (status) {
+            setVpnBytesRx(status.bytes_rx || 0);
+            setVpnBytesTx(status.bytes_tx || 0);
+            if (!status.running) {
+              vpnStopped();
+            }
+          }
+        } catch (e) {
+          console.warn('vpn_status poll error:', e);
+        }
+      }, 2000);
+      vpnPollRef.current = poll;
+    } else {
+      if (vpnPollRef.current) {
+        clearInterval(vpnPollRef.current);
+        vpnPollRef.current = null;
+      }
+    }
+    return () => {
+      if (vpnPollRef.current) clearInterval(vpnPollRef.current);
+    };
+  }, [vpnActive]);
+
+  const vpnStopped = () => {
+    setVpnActive(false);
+    setVpnBytesRx(0);
+    setVpnBytesTx(0);
+    setIsConnected(false);
+    setConnectedAt(null);
+    updateTrayTooltip('disconnected');
+    notifyUser('DocsPI', t?.logDisconnected || 'VPN baglantisi kesildi', 'disconnect');
+    if (addLog) addLog(t?.logDisconnected || 'VPN baglantisi kesildi', 'warn');
+  };
+
+  const startAndroidVpn = useCallback(async () => {
+    updateTrayTooltip('connecting');
+    if (addLog) addLog(t?.logStartingVpn || 'VPN baslatiliyor...', 'info');
+    try {
+      await invoke('start_vpn', {
+        config: {
+          dns: configRef.current.selectedDns || '1.1.1.1',
+          proxy_port: 0,
+          bypass_mode: configRef.current.networkMode || 'game',
+          fake_sni: configRef.current.fakeSni || 'www.google.com',
+          dpi_method: configRef.current.dpiMethod || '2',
+        }
+      });
+      setVpnActive(true);
+      retryCount.current = 0;
+      setIsConnected(true);
+      setConnectedAt(Date.now());
+      setIsProcessing(false);
+      updateTrayTooltip('connected');
+      notifyUser('DocsPI', t?.logVpnConnected || 'VPN aktif', 'connect');
+      if (addLog) addLog(t?.logVpnConnected || 'VPN basariyla baslatildi', 'success');
+    } catch (e) {
+      setVpnActive(false);
+      setIsConnected(false);
+      setIsProcessing(false);
+      updateTrayTooltip('disconnected');
+      if (addLog) addLog(t?.logVpnStartError?.(e) || `VPN baslatilamadi: ${e}`, 'error');
+    }
+  }, [addLog, configRef, notifyUser, setConnectedAt, setIsConnected, setIsProcessing, t, updateTrayTooltip]);
+
+  const stopAndroidVpn = useCallback(async () => {
+    try {
+      await invoke('stop_vpn');
+    } catch (e) {
+      console.warn('stop_vpn error:', e);
+    }
+    vpnStopped();
+  }, [vpnStopped]);
 
   const getRetryDelay = (attempt) => {
     return RETRY_DELAYS[Math.min(attempt, RETRY_DELAYS.length - 1)];
@@ -197,6 +296,11 @@ export function useEngine({
   const startEngine = useCallback(async (ignoredPort, portRetryCount = 0) => {
     if (isStartingEngine.current || childProcess.current) return;
     isStartingEngine.current = true;
+
+    if (androidPlatform) {
+      await startAndroidVpn();
+      return;
+    }
 
     if (configRef.current.networkMode === 'game') {
       await startGameModeEngine();
@@ -654,7 +758,7 @@ export function useEngine({
       setIsProcessing(false);
       try { await clearProxy(); } catch (err) { console.error(err); }
     }
-  }, [addLog, buildDivertConfig, clearProxy, configRef, connectedAt, notifyUser, pingMs, resolveI18nMessage, saveSession, setConnectedAt, setCurrentPort, setIsConnected, setIsProcessing, setLanIp, setPacPort, t, updateTrayTooltip, waitForPort]);
+  }, [addLog, androidPlatform, buildDivertConfig, clearProxy, configRef, connectedAt, notifyUser, pingMs, resolveI18nMessage, saveSession, setConnectedAt, setCurrentPort, setIsConnected, setIsProcessing, setLanIp, setPacPort, startAndroidVpn, t, updateTrayTooltip, waitForPort]);
 
   return {
     startEngine,
@@ -663,7 +767,13 @@ export function useEngine({
     childProcess,
     isStartingEngine,
     retryCount,
-    userIntentDisconnect
+    userIntentDisconnect,
+    androidPlatform,
+    vpnActive,
+    vpnBytesRx,
+    vpnBytesTx,
+    startAndroidVpn,
+    stopAndroidVpn,
   };
 }
 
