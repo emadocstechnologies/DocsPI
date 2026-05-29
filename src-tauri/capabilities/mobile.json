@@ -1,0 +1,18 @@
+{
+  "identifier": "mobile-capability",
+  "platforms": [
+    "android",
+    "iOS"
+  ],
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "clipboard-manager:allow-write-text",
+    "notification:allow-notify",
+    "notification:allow-request-permission",
+    "notification:allow-is-permission-granted",
+    "process:allow-exit"
+  ]
+}

@@ -1,7 +1,9 @@
 {
   "identifier": "desktop-capability",
   "platforms": [
-    "windows"
+    "windows",
+    "macOS",
+    "linux"
   ],
   "windows": [
     "main"
@@ -9,6 +11,34 @@
   "permissions": [
     "autostart:allow-enable",
     "autostart:allow-disable",
-    "autostart:allow-is-enabled"
+    "autostart:allow-is-enabled",
+    "core:window:allow-close",
+    "core:window:allow-hide",
+    "core:window:allow-show",
+    "core:window:allow-set-focus",
+    "core:window:allow-set-always-on-top",
+    "core:window:allow-unminimize",
+    "core:window:allow-destroy",
+    {
+      "identifier": "shell:allow-spawn",
+      "allow": [
+        {
+          "name": "binaries/docspi-proxy",
+          "sidecar": true,
+          "args": true
+        }
+      ]
+    },
+    {
+      "identifier": "shell:allow-kill",
+      "allow": [
+        {
+          "name": "binaries/docspi-proxy",
+          "sidecar": true,
+          "args": true
+        }
+      ]
+    },
+    "shell:allow-stdin-write"
   ]
 }

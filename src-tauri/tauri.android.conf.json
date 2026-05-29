@@ -4,6 +4,8 @@
   "bundle": {
     "android": {
       "minSdkVersion": 24
-    }
+    },
+    "externalBin": [],
+    "resources": {}
   }
 }
