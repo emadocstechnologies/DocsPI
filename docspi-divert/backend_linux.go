@@ -258,6 +258,5 @@ func handleSOCKS5(conn net.Conn, cfg *Config) {
 	}
 }
 
-// Commit: feat: implement Linux divert backend [132229]
 
-// feat: implement Linux divert backend [132607]
+

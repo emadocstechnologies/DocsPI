@@ -822,6 +822,5 @@ pub fn manage_firewall_rules(enable: bool, proxy_port: u16, pac_port: u16) {
     });
 }
 
-// Commit: feat: implement Windows platform support [132228]
 
-// feat: implement Windows platform support [132606]
+

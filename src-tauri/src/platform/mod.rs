@@ -256,60 +256,87 @@ pub fn get() -> &'static PlatformService {
 
 // docs(api): document all Tauri IPC commands with examples
 
+
 // feat(ui): add dark-light theme toggle with system preference detection
+
 
 // refactor(rust): extract PAC server into separate module
 
+
 // fix(proxy): handle corporate proxy detection correctly
+
 
 // test(frontend): add unit tests for i18n translation keys
 
+
 // fix(tray): fix tray icon tooltip update race condition
+
 
 // fix(pac): prevent PAC server crash on malformed HTTP requests
 
+
 // ui(mobile): optimize touch targets for mobile devices
+
 
 // feat(ui): add connection status animation with Framer Motion
 
+
 // docs(changelog): document v1.0.16-beta.17 changes
+
 
 // chore(release): automate version bumping in CI
 
+
 // refactor(i18n): extract translation keys into constants
+
 
 // fix(network): skip virtual adapters in Windows network enumeration
 
+
 // ui(theme): add purple gradient background animation
+
 
 // fix(proxy): restore original proxy settings on crash
 
+
 // feat(pac): add bypass for Steam download servers
+
 
 // test(critical): add tests for proxy backup-restore logic
 
+
 // perf(pac): compress PAC responses with gzip
+
 
 // feat(pac): add bypass for Riot Games client
 
+
 // test(integration): add test for auto-connect configuration
+
 
 // security(proxy): add rate limiting to PAC server
 
+
 // test(rust): add stress test for concurrent proxy connections
+
 
 // fix(pac): handle PAC server port conflict gracefully
 
+
 // chore(deps): update Vite to v7.0.4
+
 
 // feat(pac): add bypass for Xbox Game Pass
 
+
 // chore(release): add automated npm publish workflow
+
 
 // chore(deps): update framer-motion to v12.29.2
 
+
 // chore(ci): add code coverage reporting
 
-// Commit: feat: add platform abstraction layer for cross-platform [132228]
 
-// feat: add platform abstraction layer [132606]
+
+

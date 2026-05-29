@@ -123,6 +123,5 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     }
 }
 
-// Commit: feat: implement iOS PacketTunnelProvider [132230]
 
-// feat: implement iOS PacketTunnelProvider [132607]
+

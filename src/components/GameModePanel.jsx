@@ -160,6 +160,5 @@ export default function GameModePanel({ config, updateConfig, isConnected }) {
   );
 }
 
-// Commit: feat: implement GameModePanel component [132225]
 
-// feat: implement GameModePanel component [132603]
+

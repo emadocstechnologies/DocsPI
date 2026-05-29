@@ -294,6 +294,5 @@ MIT License — see [LICENSE](LICENSE) for details.
   <sub>Built with ❤️ by <a href="https://github.com/aydocs">aydocs</a> & <a href="https://github.com/emadocstechnologies">EmaDocs Technologies</a></sub>
 </p>
 
-// Commit: feat: add README.md with project documentation [132231]
 
-// feat: add README.md documentation [132608]
+

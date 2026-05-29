@@ -211,6 +211,5 @@ impl DivertManager for AndroidDivert {
     }
 }
 
-// Commit: feat: add Android platform support [132229]
 
-// feat: add Android platform support [132606]
+

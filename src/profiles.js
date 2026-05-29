@@ -187,6 +187,5 @@ export const VALID_DPI_METHODS = ['0', '1', '2'];
 
 
 
-// Commit: feat: add profiles.js for ISP configurations [132227]
 
-// feat: implement profiles.js for ISP configs [132605]
+

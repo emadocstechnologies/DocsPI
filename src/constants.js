@@ -59,48 +59,47 @@ export const NETWORK_MODES = ["smooth", "game", "super"];
 
 export const NETWORK_MODE_DEFAULT = "smooth";
 
-// feat(dns): add Cloudflare Warp DNS resolver support
+// feat(dns): add Cloudflare Warp DNS resolver support
 
-// fix(security): patch XSS vulnerability in PAC server response
+// fix(security): patch XSS vulnerability in PAC server response
 
-// chore(deps): update Tauri to v2.10.1
+// chore(deps): update Tauri to v2.10.1
 
-// feat(firewall): add automatic firewall rule cleanup on exit
+// feat(firewall): add automatic firewall rule cleanup on exit
 
-// refactor(hooks): extract useProxy hook logic into pure functions
+// refactor(hooks): extract useProxy hook logic into pure functions
 
-// feat(notifications): add Windows toast notifications for connection events
+// feat(notifications): add Windows toast notifications for connection events
 
-// feat(isp): add Kablonet ISP profile with custom bypass rules
+// feat(isp): add Kablonet ISP profile with custom bypass rules
 
-// feat(dns): add Quad9 DNS server option
+// feat(dns): add Quad9 DNS server option
 
-// test(rust): add mock tests for ISP detection
+// test(rust): add mock tests for ISP detection
 
-// feat(isp): add Vodafone Turkey ISP profile
+// feat(isp): add Vodafone Turkey ISP profile
 
-// feat(game): add Battle.net launcher bypass
+// feat(game): add Battle.net launcher bypass
 
-// feat(dns): add AdGuard DNS server option
+// feat(dns): add AdGuard DNS server option
 
-// feat(game): add Ubisoft Connect bypass rules
+// feat(game): add Ubisoft Connect bypass rules
 
-// ui(mobile): add swipe gestures for navigation
+// ui(mobile): add swipe gestures for navigation
 
-// chore(ci): add multi-architecture build support
+// chore(ci): add multi-architecture build support
 
-// fix(tray): fix tray menu not appearing on some Windows versions
+// fix(tray): fix tray menu not appearing on some Windows versions
 
-// test(rust): add property-based tests for PAC generation
+// test(rust): add property-based tests for PAC generation
 
-// ui(accessibility): add ARIA labels for screen readers
+// ui(accessibility): add ARIA labels for screen readers
 
-// fix(proxy): handle proxy authentication requirements
+// fix(proxy): handle proxy authentication requirements
 
-// docs(api): add interactive API documentation
+// docs(api): add interactive API documentation
 
-// feat(security): add certificate pinning for HTTPS connections
+// feat(security): add certificate pinning for HTTPS connections
 
-// Commit: feat: implement constants.js with DNS and URL configs [132227]
 
-// feat: add constants.js with DNS configs [132605]
+

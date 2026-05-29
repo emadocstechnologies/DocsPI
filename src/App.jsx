@@ -2621,54 +2621,52 @@ function AppContent() {
 
 export default App;
 
-// feat(isp): add Turkcell ISP detection via ip-api.com
+// feat(isp): add Turkcell ISP detection via ip-api.com
 
-// fix(memory): prevent memory leak in divert process handler
+// fix(memory): prevent memory leak in divert process handler
 
-// feat(pac): add bypass rules for Microsoft Teams and Outlook
+// feat(pac): add bypass rules for Microsoft Teams and Outlook
 
-// docs(readme): add Turkish translation of README
+// docs(readme): add Turkish translation of README
 
-// feat(game): add Discord voice optimization mode
+// feat(game): add Discord voice optimization mode
 
-// security(auth): remove hardcoded API keys from source
+// security(auth): remove hardcoded API keys from source
 
-// feat(speed): add download speed measurement in Mbps
+// feat(speed): add download speed measurement in Mbps
 
-// chore(ci): add Rust clippy to CI pipeline
+// chore(ci): add Rust clippy to CI pipeline
 
-// refactor(platform): consolidate platform-specific code into traits
+// refactor(platform): consolidate platform-specific code into traits
 
-// fix(registry): handle Windows registry permission errors gracefully
+// fix(registry): handle Windows registry permission errors gracefully
 
-// test(e2e): add integration test for proxy connection flow
+// test(e2e): add integration test for proxy connection flow
 
-// perf(tauri): reduce app startup time by 40 percent with lazy init
+// perf(tauri): reduce app startup time by 40 percent with lazy init
 
-// perf(divert): optimize packet processing with batch operations
+// perf(divert): optimize packet processing with batch operations
 
-// docs(security): add SECURITY.md with vulnerability reporting
+// docs(security): add SECURITY.md with vulnerability reporting
 
-// ui(settings): add advanced settings panel with collapse animation
+// ui(settings): add advanced settings panel with collapse animation
 
-// chore(ci): add automated security scanning with CodeQL
+// chore(ci): add automated security scanning with CodeQL
 
-// perf(rust): reduce binary size with link-time optimization
+// perf(rust): reduce binary size with link-time optimization
 
-// feat(notifications): add macOS notification center support
+// feat(notifications): add macOS notification center support
 
-// feat(firewall): add nftables support for Linux
+// feat(firewall): add nftables support for Linux
 
-// perf(network): cache ISP detection results for 5 minutes
+// perf(network): cache ISP detection results for 5 minutes
 
-// security: add CSP headers to PAC server responses
 
-// test(e2e): add Playwright tests for UI workflows
+// test(e2e): add Playwright tests for UI workflows
 
-// perf(init): lazy-load heavy modules on first use
+// perf(init): lazy-load heavy modules on first use
 
-// test(integration): add test for divert engine lifecycle
+// test(integration): add test for divert engine lifecycle
 
-// Commit: feat: implement React frontend with Vite 7 [132222]
 
-// feat: implement React frontend with Vite 7 [132603]
+

@@ -454,6 +454,5 @@ impl DivertManager for MacosDivert {
     }
 }
 
-// Commit: feat: add macOS platform support [132228]
 
-// feat: add macOS platform support [132606]
+

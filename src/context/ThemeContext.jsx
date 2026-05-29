@@ -37,6 +37,5 @@ export const useTheme = () => {
   return context;
 };
 
-// Commit: feat: add ThemeContext for dark/light mode [132226]
 
-// feat: add ThemeContext for dark/light mode [132604]
+

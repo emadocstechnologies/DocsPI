@@ -219,4 +219,4 @@ export default function UpdateNotification({ onOpenSettings }) {
   );
 }
 
-// Commit: feat: add UpdateNotification component [132226]
+

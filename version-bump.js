@@ -38,6 +38,5 @@ fs.writeFileSync(packagePath, JSON.stringify(pkg, null, 2));
 
 console.log(`Version auto-updated to: ${pkg.version}`);
 
-// Commit: feat: implement version bump script [132232]
 
-// feat: implement version bump script [132608]
+

@@ -412,3 +412,4 @@ export function runSelfDiagnostic() {
     healthy: issues.filter(i => i.severity === 'critical').length === 0,
   };
 }
+

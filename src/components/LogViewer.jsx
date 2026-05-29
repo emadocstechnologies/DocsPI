@@ -245,4 +245,4 @@ export function LogViewer({ logs, onClose, onClear, onCopy, copyStatus, t }) {
     </motion.div>
   );
 }
-// Commit: feat: implement LogViewer component [132226]
+

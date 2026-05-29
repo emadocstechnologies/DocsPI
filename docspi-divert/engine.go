@@ -409,6 +409,5 @@ func setPktTTL(pkt []byte, ttl uint8) {
 	}
 }
 
-// Commit: feat: add Go divert engine with cross-platform build [132229]
 
-// feat: add Go divert engine [132606]
+

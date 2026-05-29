@@ -62,6 +62,5 @@ const BypassTest = ({ proxyPort, language = 'tr' }) => {
 
 export default BypassTest;
 
-// Commit: feat: implement BypassTest component [132225]
 
-// feat: implement BypassTest component [132603]
+

@@ -1814,34 +1814,33 @@ const Settings = ({ onBack, config, updateConfig, dnsLatencies, setDnsLatencies,
 
 export default Settings;
 
-// feat(notifications): add Linux notification support via notify-send
+// feat(notifications): add Linux notification support via notify-send
 
-// fix(ui): prevent double-click on connect button
+// fix(ui): prevent double-click on connect button
 
-// refactor(state): simplify React state management with useReducer
+// refactor(state): simplify React state management with useReducer
 
-// fix(firewall): handle Windows Firewall service not running
+// fix(firewall): handle Windows Firewall service not running
 
-// docs(api): add OpenAPI specification for IPC commands
+// docs(api): add OpenAPI specification for IPC commands
 
-// fix(ui): handle window resize on DPI-scaled displays
+// fix(ui): handle window resize on DPI-scaled displays
 
-// fix(security): prevent DNS rebinding attacks in PAC server
+// fix(security): prevent DNS rebinding attacks in PAC server
 
-// feat(game): add EA and Origin launcher bypass
+// feat(game): add EA and Origin launcher bypass
 
-// feat(ui): add connection history with timestamps
+// feat(ui): add connection history with timestamps
 
-// test(frontend): add snapshot tests for React components
+// test(frontend): add snapshot tests for React components
 
-// feat(isp): add Milenicom ISP profile
+// feat(isp): add Milenicom ISP profile
 
-// feat(game): add Blizzard Battle.net bypass
+// feat(game): add Blizzard Battle.net bypass
 
-// refactor(rust): reduce lib.rs from 2548 to 1960 lines
+// refactor(rust): reduce lib.rs from 2548 to 1960 lines
 
-// feat(game): add Valorant Vanguard bypass
+// feat(game): add Valorant Vanguard bypass
 
-// Commit: feat: implement Settings page with theme support [132226]
 
-// feat: implement Settings page with theme support [132604]
+

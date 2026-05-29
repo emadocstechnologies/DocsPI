@@ -147,6 +147,5 @@ export default function TrafficCounter({ isConnected, dnsLatencies, ispName }) {
   );
 }
 
-// Commit: feat: add TrafficCounter component [132225]
 
-// feat: add TrafficCounter component [132604]
+

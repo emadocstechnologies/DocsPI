@@ -62,6 +62,5 @@ class ErrorBoundary extends React.Component {
 
 export default ErrorBoundary;
 
-// Commit: feat: add ErrorBoundary component for error handling [132225]
 
-// feat: add ErrorBoundary component [132603]
+

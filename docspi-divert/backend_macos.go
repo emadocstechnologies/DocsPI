@@ -232,6 +232,5 @@ func handleSOCKS5(conn net.Conn, cfg *Config) {
 	}
 }
 
-// Commit: feat: add macOS divert backend [132229]
 
-// feat: add macOS divert backend [132607]
+

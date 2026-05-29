@@ -43,16 +43,15 @@
     "vite": "^7.0.4"
   }
 }
-// perf(pac): optimize PAC file generation with template caching
+// perf(pac): optimize PAC file generation with template caching
 
-// test(rust): add unit tests for proxy manager traits
+// test(rust): add unit tests for proxy manager traits
 
-// feat(dns): add DNS-over-HTTPS support for Cloudflare and Google
+// feat(dns): add DNS-over-HTTPS support for Cloudflare and Google
 
-// feat(game): add Steam and Epic Games launcher bypass rules
+// feat(game): add Steam and Epic Games launcher bypass rules
 
-// feat(autostart): add Windows Task Scheduler integration
+// feat(autostart): add Windows Task Scheduler integration
 
-// Commit: feat: initial DocsPI project setup with Tauri v2 and React 19 [132219]
 
-// feat: initial project setup with Tauri v2 and React 19 [132601]
+

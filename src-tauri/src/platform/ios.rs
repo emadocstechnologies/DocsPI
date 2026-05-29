@@ -158,6 +158,5 @@ impl DivertManager for IosDivert {
     fn engine_file_name(&self) -> String { "docspi-divert-ios".to_string() }
 }
 
-// Commit: feat: implement iOS platform support [132229]
 
-// feat: implement iOS platform support [132606]
+

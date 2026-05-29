@@ -77,6 +77,5 @@ npm run tauri build
 
 Teşekkürler! 🙏
 
-// Commit: feat: implement CONTRIBUTING.md guidelines [132231]
 
-// feat: implement CONTRIBUTING.md [132608]
+
