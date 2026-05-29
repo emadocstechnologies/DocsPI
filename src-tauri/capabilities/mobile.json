@@ -1,8 +1,7 @@
 {
   "identifier": "mobile-capability",
   "platforms": [
-    "android",
-    "iOS"
+    "android"
   ],
   "windows": [
     "main"
