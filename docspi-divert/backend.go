@@ -21,6 +21,10 @@ type Config struct {
 	DNSAddr     string
 	ProxyPort   int
 	FakeSNI     string
+	IpFragId    int    // IP fragmentation: custom IP ID (0 = random)
+	IpFragSize  int    // IP fragmentation: fragment size in bytes (0 = off)
+	FakeHello   bool   // Enable fake TLS Client Hello injection
+	KillSwitch  bool   // Block non-VPN/proxy traffic on disconnect
 }
 
 // newPlatformBackend creates the OS-specific backend.

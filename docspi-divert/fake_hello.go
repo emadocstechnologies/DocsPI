@@ -5,6 +5,124 @@ import (
 	"encoding/binary"
 )
 
+// Multiple TLS fingerprint profiles for randomization.
+// Each profile defines a different cipher suite order, extension set,
+// and TLS version preference to evade JA3 fingerprinting.
+type fingerprintProfile struct {
+	tlsMinorVersion byte   // 0x03 = TLS 1.2, 0x04 = TLS 1.3
+	cipherSuites    []byte
+	extensions      []extensionDef
+}
+
+type extensionDef struct {
+	extType uint16
+	data    []byte
+}
+
+var fingerprintProfiles = []fingerprintProfile{
+	{ // Profile 0: Chrome-like (TLS 1.3 preferred)
+		tlsMinorVersion: 0x04,
+		cipherSuites: []byte{
+			0x13, 0x01, 0x13, 0x03, 0x13, 0x02,
+			0xC0, 0x2B, 0xC0, 0x2F, 0xCC, 0xA9,
+			0xCC, 0xA8, 0xC0, 0x2C, 0xC0, 0x30,
+			0x00, 0x9C, 0x00, 0x9D, 0x00, 0x2F, 0x00, 0x35,
+		},
+		extensions: []extensionDef{
+			{0x0000, nil}, // SNI
+			{0x0017, nil}, // extended_master_secret
+			{0xFF01, []byte{0x00}},
+			{0x000A, []byte{0x00, 0x08, 0x00, 0x1D, 0x00, 0x17, 0x00, 0x18, 0x00, 0x19}},
+			{0x000B, []byte{0x01, 0x00}},
+			{0x0023, nil},
+			{0x0010, nil}, // ALPN
+			{0x0005, []byte{0x01, 0x00, 0x00, 0x00, 0x00}},
+			{0x002B, []byte{0x04, 0x03, 0x04, 0x03, 0x03}},
+			{0x000D, []byte{
+				0x00, 0x18,
+				0x04, 0x03, 0x05, 0x03, 0x06, 0x03,
+				0x08, 0x04, 0x08, 0x05, 0x08, 0x06,
+				0x04, 0x01, 0x05, 0x01, 0x06, 0x01,
+				0x02, 0x03, 0x02, 0x01, 0x02, 0x02,
+			}},
+			{0x002D, []byte{0x01, 0x01}},
+			{0x0033, nil}, // key_share
+		},
+	},
+	{ // Profile 1: Firefox-like (TLS 1.3, different cipher order)
+		tlsMinorVersion: 0x04,
+		cipherSuites: []byte{
+			0x13, 0x01, 0x13, 0x02, 0x13, 0x03,
+			0xC0, 0x2B, 0xC0, 0x2C, 0xC0, 0x2F,
+			0xC0, 0x30, 0xCC, 0xA9, 0xCC, 0xA8,
+			0x00, 0x9C, 0x00, 0x9D, 0x00, 0x2F, 0x00, 0x35,
+		},
+		extensions: []extensionDef{
+			{0x0000, nil},
+			{0x0017, nil},
+			{0xFF01, []byte{0x00}},
+			{0x000A, []byte{0x00, 0x08, 0x00, 0x1D, 0x00, 0x17, 0x00, 0x18, 0x00, 0x19}},
+			{0x002B, []byte{0x04, 0x03, 0x04, 0x03, 0x03}},
+			{0x000D, []byte{
+				0x00, 0x16,
+				0x04, 0x03, 0x05, 0x03, 0x06, 0x03,
+				0x08, 0x04, 0x08, 0x05, 0x08, 0x06,
+				0x04, 0x01, 0x05, 0x01, 0x06, 0x01,
+				0x02, 0x03, 0x02, 0x01,
+			}},
+			{0x002D, []byte{0x01, 0x01}},
+			{0x0010, nil},
+			{0x0033, nil},
+			{0x0015, []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}},
+		},
+	},
+	{ // Profile 2: Safari-like (TLS 1.3, minimal extensions)
+		tlsMinorVersion: 0x04,
+		cipherSuites: []byte{
+			0x13, 0x01, 0x13, 0x03, 0x13, 0x02,
+			0xC0, 0x2B, 0xC0, 0x2F, 0xCC, 0xA9,
+			0xCC, 0xA8, 0xC0, 0x2C, 0xC0, 0x30,
+			0x00, 0x9C, 0x00, 0x9D, 0x00, 0x2F, 0x00, 0x35,
+		},
+		extensions: []extensionDef{
+			{0x0000, nil},
+			{0x000A, []byte{0x00, 0x06, 0x00, 0x1D, 0x00, 0x17, 0x00, 0x18}},
+			{0x000B, []byte{0x01, 0x00}},
+			{0x002B, []byte{0x02, 0x03, 0x04}},
+			{0x000D, []byte{0x00, 0x08, 0x04, 0x01, 0x05, 0x01, 0x02, 0x01, 0x04, 0x03}},
+			{0x0010, nil},
+			{0x0033, nil},
+		},
+	},
+	{ // Profile 3: Edge-like (TLS 1.2 + 1.3, grease)
+		tlsMinorVersion: 0x04,
+		cipherSuites: []byte{
+			0x13, 0x01, 0x13, 0x03, 0x13, 0x02,
+			0xC0, 0x2B, 0xC0, 0x2F, 0xCC, 0xA9,
+			0xCC, 0xA8, 0xC0, 0x2C, 0xC0, 0x30,
+			0x00, 0x9C, 0x00, 0x9D, 0x00, 0x2F, 0x00, 0x35,
+			0x0A, 0x0A,
+		},
+		extensions: []extensionDef{
+			{0x0A0A, nil},
+			{0x0000, nil},
+			{0x0017, nil},
+			{0xFF01, []byte{0x00}},
+			{0x000A, []byte{0x00, 0x08, 0x00, 0x1D, 0x00, 0x17, 0x00, 0x18, 0x00, 0x19}},
+			{0x000B, []byte{0x01, 0x00}},
+			{0x0023, nil},
+			{0x0010, nil},
+			{0x0005, []byte{0x01, 0x00, 0x00, 0x00, 0x00}},
+			{0x002B, []byte{0x09, 0x03, 0x04, 0x03, 0x04, 0x01, 0x05, 0x03, 0x05, 0x01}},
+			{0x000D, []byte{0x00, 0x0A, 0x04, 0x03, 0x05, 0x03, 0x06, 0x03, 0x08, 0x04, 0x08, 0x05}},
+			{0x0033, nil},
+		},
+	},
+}
+
+var greaseValues = []byte{0x0A, 0x1A, 0x2A, 0x3A, 0x4A, 0x5A, 0x6A, 0x7A, 0x8A, 0x9A, 0xAA, 0xBA, 0xCA, 0xDA, 0xEA, 0xFA}
+
+// buildFakeClientHello builds a TLS ClientHello with the given SNI.
 func buildFakeClientHello(sni string) []byte {
 	random := make([]byte, 32)
 	rand.Read(random)
@@ -73,6 +191,91 @@ func buildFakeClientHello(sni string) []byte {
 	)
 }
 
+// buildFakeClientHelloRandomized picks a random fingerprint profile
+// and builds a ClientHello with that profile's characteristics.
+// The profile index is seeded from the first random byte to make it
+// reproducible per packet but unique across connections.
+func buildFakeClientHelloRandomized(sni string) []byte {
+	// Pick a random profile
+	seed := make([]byte, 1)
+	rand.Read(seed)
+	profileIdx := int(seed[0]) % len(fingerprintProfiles)
+	profile := fingerprintProfiles[profileIdx]
+
+	random := make([]byte, 32)
+	rand.Read(random)
+	sessionID := make([]byte, 32)
+	rand.Read(sessionID)
+
+	// Build extensions
+	var exts []byte
+	for _, ext := range profile.extensions {
+		switch ext.extType {
+		case 0x0000:
+			// SNI — always include with actual SNI
+			exts = append(exts, fhBuildSNIExt([]byte(sni))...)
+		case 0x0010:
+			exts = append(exts, fhBuildALPN()...)
+		case 0x0033:
+			exts = append(exts, fhBuildKeyShare()...)
+		default:
+			if ext.data != nil {
+				exts = append(exts, fhBuildExt(ext.extType, ext.data)...)
+			} else {
+				exts = append(exts, fhBuildExt(ext.extType, []byte{})...)
+			}
+		}
+	}
+
+	// Maybe add random GREASE (10% chance)
+	if seed[0] > 230 {
+		g := greaseValues[int(seed[0])%len(greaseValues)]
+		greaseExt := fhBuildExt(uint16(g)<<8|uint16(g), []byte{0x00})
+		// Insert at random position
+		insertAt := len(exts) / 2
+		var shuffled []byte
+		shuffled = append(shuffled, exts[:insertAt]...)
+		shuffled = append(shuffled, greaseExt...)
+		shuffled = append(shuffled, exts[insertAt:]...)
+		exts = shuffled
+	}
+
+	ch := fhConcat(
+		[]byte{0x03, profile.tlsMinorVersion},
+		random,
+		[]byte{0x20},
+		sessionID,
+		fhU16(uint16(len(profile.cipherSuites))),
+		profile.cipherSuites,
+		[]byte{0x01, 0x00},
+		fhU16(uint16(len(exts))),
+		exts,
+	)
+
+	hs := fhConcat(
+		[]byte{0x01},
+		fhU24(uint32(len(ch))),
+		ch,
+	)
+
+	return fhConcat(
+		[]byte{0x16, 0x03, 0x01},
+		fhU16(uint16(len(hs))),
+		hs,
+	)
+}
+
+// buildFakeClientHelloWithIPID builds a fake ClientHello and
+// sets a custom IP Identification field for IP fragmentation bypass.
+func buildFakeClientHelloWithIPID(sni string, ipID int) []byte {
+	hello := buildFakeClientHelloRandomized(sni)
+	if len(hello) >= 4 && ipID > 0 {
+		hello[4] = byte(ipID >> 8)
+		hello[5] = byte(ipID)
+	}
+	return hello
+}
+
 func fhBuildSNIExt(sni []byte) []byte {
 	entry := fhConcat([]byte{0x00}, fhU16(uint16(len(sni))), sni)
 	data := fhConcat(fhU16(uint16(len(entry))), entry)
@@ -118,4 +321,11 @@ func fhConcat(parts ...[]byte) []byte {
 		out = append(out, p...)
 	}
 	return out
+}
+
+// fhRandomUint16 returns a random uint16, using bits if crypto/rand is unavailable.
+func fhRandomUint16() uint16 {
+	b := make([]byte, 2)
+	rand.Read(b)
+	return binary.BigEndian.Uint16(b)
 }

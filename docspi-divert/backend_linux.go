@@ -3,6 +3,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/binary"
 	"flag"
 	"fmt"
@@ -123,6 +124,44 @@ func restoreLinuxDNS() {
 
 // ── Main ──────────────────────────────────────────────────────
 
+func checkCapNetRaw() bool {
+	// Check if process has CAP_NET_RAW capability
+	// /proc/self/status contains CapEff line with bitmask
+	data, err := os.ReadFile("/proc/self/status")
+	if err != nil {
+		return false
+	}
+	for _, line := range bytes.Split(data, []byte("\n")) {
+		if bytes.HasPrefix(line, []byte("CapEff:")) {
+			parts := bytes.Fields(line)
+			if len(parts) >= 2 {
+				// CAP_NET_RAW = bit 13
+				var capEff uint64
+				fmt.Sscanf(string(parts[1]), "%x", &capEff)
+				return capEff&(1<<13) != 0
+			}
+		}
+	}
+	return false
+}
+
+func setupKillSwitch() {
+	// Block all non-VPN traffic on disconnect
+	exec.Command("/sbin/iptables", "-t", "filter", "-P", "INPUT", "DROP").Run()
+	exec.Command("/sbin/iptables", "-t", "filter", "-P", "FORWARD", "DROP").Run()
+	exec.Command("/sbin/iptables", "-A", "INPUT", "-m", "state", "--state", "ESTABLISHED,RELATED", "-j", "ACCEPT").Run()
+	exec.Command("/sbin/iptables", "-A", "INPUT", "-i", "lo", "-j", "ACCEPT").Run()
+	fmt.Println("[KillSwitch] Aktif — internete erişim engellendi, sadece VPN/proxy izinli")
+}
+
+func cleanupKillSwitch() {
+	exec.Command("/sbin/iptables", "-t", "filter", "-P", "INPUT", "ACCEPT").Run()
+	exec.Command("/sbin/iptables", "-t", "filter", "-P", "FORWARD", "ACCEPT").Run()
+	exec.Command("/sbin/iptables", "-D", "INPUT", "-m", "state", "--state", "ESTABLISHED,RELATED", "-j", "ACCEPT").Run()
+	exec.Command("/sbin/iptables", "-D", "INPUT", "-i", "lo", "-j", "ACCEPT").Run()
+	fmt.Println("[KillSwitch] Devre dışı — internet erişimi normal")
+}
+
 func main() {
 	mode := flag.String("mode", "game", "game or super")
 	autoTTL := flag.Bool("auto-ttl", true, "enable auto-ttl")
@@ -134,6 +173,10 @@ func main() {
 	proxyPort := flag.Int("proxy-port", 0, "SOCKS5 proxy port (user mode)")
 	pidFile := flag.String("pid-file", "", "write PID to this file")
 	fakeSNI := flag.String("fake-sni", "www.google.com", "fake SNI for fragmentation")
+	ipFragId := flag.Int("ip-frag-id", 0, "custom IP ID for fragmentation (0=auto)")
+	ipFragSize := flag.Int("ip-frag-size", 0, "IP fragment size in bytes (0=off)")
+	fakeHello := flag.Bool("fake-hello", false, "randomized TLS fingerprint injection")
+	killSwitch := flag.Bool("kill-switch", false, "block traffic on disconnect")
 	flag.Parse()
 
 	if *pidFile != "" {
@@ -151,19 +194,23 @@ func main() {
 		DNSAddr:     *dnsAddr,
 		ProxyPort:   *proxyPort,
 		FakeSNI:     *fakeSNI,
+		IpFragId:    *ipFragId,
+		IpFragSize:  *ipFragSize,
+		FakeHello:   *fakeHello,
+		KillSwitch:  *killSwitch,
 	}
 
 	isRoot := syscall.Geteuid() == 0
+	hasCap := checkCapNetRaw()
 
-	if !isRoot && *proxyPort == 0 {
-		fmt.Fprintln(os.Stderr, "[WARN] Root gerekli veya --proxy-port ile SOCKS5 modunu kullanın")
+	if !isRoot && !hasCap && *proxyPort == 0 {
+		fmt.Fprintln(os.Stderr, "[WARN] Root veya CAP_NET_RAW gerekli. --proxy-port ile SOCKS5 modunu kullanın")
 		os.Exit(1)
 	}
 
-	if isRoot {
+	if isRoot || hasCap {
 		backend := newBackend(cfg).(*afPacketBackend)
 
-		// Open capture + injection sockets
 		if err := backend.openCapture(); err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] Capture socket: %v\n", err)
 			os.Exit(1)
@@ -175,9 +222,13 @@ func main() {
 			os.Exit(1)
 		}
 
-		// Intercept TCP/443 and UDP/443 traffic
 		setupIptablesRules()
 		defer cleanupIptablesRules()
+
+		if *killSwitch {
+			setupKillSwitch()
+			defer cleanupKillSwitch()
+		}
 
 		if *dnsRedirect {
 			setLinuxDNS(*dnsAddr)

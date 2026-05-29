@@ -10,10 +10,12 @@ pub struct VpnConfig {
 #[derive(Debug, Clone, Serialize)]
 pub struct VpnStatus {
     pub running: bool,
+    pub bytes_rx: u64,
+    pub bytes_tx: u64,
 }
 
 // ---------------------------------------------------------------------------
-// Android — bridges to DocsPiVpnService via JNI
+// Android — bridges to DocsPIApp + DocsPiVpnService via JNI
 // ---------------------------------------------------------------------------
 
 #[cfg(target_os = "android")]
@@ -24,7 +26,6 @@ mod android_bridge {
 
     static VPN_RUNNING: AtomicBool = AtomicBool::new(false);
 
-    /// Get the JNI environment from the current thread
     fn with_jni<F, R>(f: F) -> Result<R, String>
     where
         F: FnOnce(&mut JNIEnv) -> Result<R, String>,
@@ -42,12 +43,7 @@ mod android_bridge {
                 .find_class("com/docspi/DocsPIApp")
                 .map_err(|e| format!("find_class: {}", e))?;
 
-            let result = env.call_static_method(
-                cls,
-                "startVpn",
-                "()Z",
-                &[],
-            );
+            let result = env.call_static_method(cls, "startVpn", "()Z", &[]);
 
             match result {
                 Ok(val) if val.z().unwrap_or(false) => {
@@ -74,16 +70,27 @@ mod android_bridge {
     }
 
     pub fn vpn_status_impl() -> VpnStatus {
-        let kotlin_running = with_jni(|env| {
+        let (kotlin_running, rx, tx) = with_jni(|env| {
             let cls = env
                 .find_class("com/docspi/DocsPIApp")?;
-            let result = env.call_static_method(cls, "isVpnActive", "()Z", &[])?;
-            Ok(result.z().unwrap_or(false))
+
+            let run_result = env.call_static_method(cls, "isVpnActive", "()Z", &[])?;
+            let running = run_result.z().unwrap_or(false);
+
+            let rx_result = env.call_static_method(cls, "getVpnBytesRx", "()J", &[])?;
+            let rx = rx_result.j().unwrap_or(0) as u64;
+
+            let tx_result = env.call_static_method(cls, "getVpnBytesTx", "()J", &[])?;
+            let tx = tx_result.j().unwrap_or(0) as u64;
+
+            Ok((running, rx, tx))
         })
-        .unwrap_or(false);
+        .unwrap_or((false, 0, 0));
 
         VpnStatus {
             running: kotlin_running,
+            bytes_rx: rx,
+            bytes_tx: tx,
         }
     }
 
@@ -107,7 +114,7 @@ mod desktop_stub {
         Ok(())
     }
     pub fn vpn_status_impl() -> VpnStatus {
-        VpnStatus { running: false }
+        VpnStatus { running: false, bytes_rx: 0, bytes_tx: 0 }
     }
 }
 

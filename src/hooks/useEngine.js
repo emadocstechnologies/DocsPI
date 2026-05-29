@@ -741,6 +741,43 @@ export function useEngine({
     }
   }, [addLog, androidPlatform, buildDivertConfig, clearProxy, configRef, connectedAt, notifyUser, pingMs, resolveI18nMessage, saveSession, setConnectedAt, setCurrentPort, setIsConnected, setIsProcessing, setLanIp, setPacPort, startAndroidVpn, t, updateTrayTooltip, waitForPort]);
 
+  // ── Adaptive DPI method check ──
+  // Periodically test bypass; if failing, auto-escalate mode (0→1→2)
+  const adaptiveCheckRef = useRef(null);
+  useEffect(() => {
+    if (isConnected && connectedAt && !androidPlatform && !vpnActive) {
+      const check = async () => {
+        try {
+          const ok = await invoke('test_bypass_connection', { proxy_port: currentPortRef.current || 8080 });
+          if (!ok) {
+            const currentMode = configRef.current.dpiMethod;
+            const MODE_ESCALATION = { '0': '1', '1': '2', '2': null };
+            const nextMode = MODE_ESCALATION[currentMode];
+            if (nextMode && configRef.current.autoEscalate !== false) {
+              if (addLog) addLog(t.logAutoEscalate?.(nextMode === '1' ? 'Dengeli' : 'Güçlü') || `Bypass basarisiz, ${nextMode} moduna geciliyor...`, 'warn');
+              setConfig(prev => {
+                const next = { ...prev, dpiMethod: nextMode };
+                localStorage.setItem('docspi_config', JSON.stringify(next));
+                return next;
+              });
+            }
+          }
+        } catch (e) {
+          console.warn('adaptive check error:', e);
+        }
+      };
+      adaptiveCheckRef.current = setInterval(check, 30000);
+    } else {
+      if (adaptiveCheckRef.current) {
+        clearInterval(adaptiveCheckRef.current);
+        adaptiveCheckRef.current = null;
+      }
+    }
+    return () => {
+      if (adaptiveCheckRef.current) clearInterval(adaptiveCheckRef.current);
+    };
+  }, [isConnected, connectedAt, androidPlatform, vpnActive]);
+
   return {
     startEngine,
     startGameModeEngine,
@@ -751,6 +788,8 @@ export function useEngine({
     userIntentDisconnect,
     androidPlatform,
     vpnActive,
+    vpnBytesRx,
+    vpnBytesTx,
     startAndroidVpn,
     stopAndroidVpn,
   };

@@ -10,31 +10,31 @@ import android.os.Build
 import android.os.ParcelFileDescriptor
 import kotlinx.coroutines.*
 
-/**
- * DocsPI VpnService — intercepts all device traffic via TUN interface
- * and forwards raw packets to the Go divert engine for DPI bypass.
- *
- * Architecture:
- *   VpnService.establish() → TUN fd
- *       → passed to Go backend (--vpn-fd)
- *       → Go reads/writes raw IP packets
- *       → processed via engine.go (TLS fragmentation, TTL, etc.)
- *
- * Started by: DocsPIApp (Application subclass) via Intent
- * Build deps: compileSdk 34+, targetSdk 34
- */
 class DocsPiVpnService : VpnService() {
 
     companion object {
         private const val NOTIF_CHANNEL_ID = "docspi_vpn"
         private const val NOTIF_ID = 1001
+        private const val VPN_REQUEST_CODE = 1000
         private const val TAG = "DocsPiVpn"
 
         @Volatile
         private var vpnActive = false
 
+        @Volatile
+        private var vpnBytesRx: Long = 0
+
+        @Volatile
+        private var vpnBytesTx: Long = 0
+
         @JvmStatic
         fun isActive(): Boolean = vpnActive
+
+        @JvmStatic
+        fun getBytesRx(): Long = vpnBytesRx
+
+        @JvmStatic
+        fun getBytesTx(): Long = vpnBytesTx
 
         @JvmStatic
         fun stopAll() {
@@ -46,6 +46,7 @@ class DocsPiVpnService : VpnService() {
     private var vpnInterface: ParcelFileDescriptor? = null
     private var divertProcess: Process? = null
     private var scope: CoroutineScope? = null
+    private var prepareIntent: Intent? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -56,23 +57,55 @@ class DocsPiVpnService : VpnService() {
         val notification = buildNotification()
         startForeground(NOTIF_ID, notification)
 
+        // VpnService.prepare() — kullanıcıdan VPN izni al
+        prepareIntent = VpnService.prepare(this)
+        if (prepareIntent != null) {
+            // Intent'i DocsPIApp'a forward et, o startActivityForResult yapsın
+            DocsPIApp.setPendingVpnIntent(prepareIntent!!)
+            // Activity'e yönlendir
+            val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
+            launchIntent?.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            launchIntent?.putExtra("vpn_prepare", true)
+            startActivity(launchIntent)
+            return START_NOT_STICKY
+        }
+
+        startVpnInternal()
+        return START_STICKY
+    }
+
+    /** prepare() onaylandıktan sonra DocsPIApp tarafından çağrılır */
+    fun onVpnPrepared() {
+        prepareIntent = null
+        startVpnInternal()
+    }
+
+    private fun startVpnInternal() {
         scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
         scope?.launch {
             establishVpn()
         }
-
-        return START_STICKY
     }
 
     override fun onDestroy() {
         super.onDestroy()
         vpnActive = false
+        vpnBytesRx = 0
+        vpnBytesTx = 0
         divertProcess?.destroy()
         divertProcess = null
         vpnInterface?.close()
         vpnInterface = null
         scope?.cancel()
         scope = null
+    }
+
+    override fun onRevoke() {
+        super.onRevoke()
+        vpnActive = false
+        vpnBytesRx = 0
+        vpnBytesTx = 0
+        stopSelf()
     }
 
     private fun establishVpn() {
@@ -128,6 +161,19 @@ class DocsPiVpnService : VpnService() {
 
         try {
             divertProcess = pb.start()
+
+            // Traffic counter thread — TUN fd'den oku, bytes_rx say
+            launch {
+                val inputStream = java.io.FileInputStream(tunFd.fileDescriptor)
+                val buf = ByteArray(65535)
+                while (isActive && vpnActive) {
+                    val n = inputStream.read(buf)
+                    if (n > 0) {
+                        vpnBytesRx += n
+                    }
+                }
+            }
+
             android.util.Log.i(TAG, "Divert engine started (PID: ${divertProcess?.pid()})")
             divertProcess?.waitFor()
         } catch (e: Exception) {

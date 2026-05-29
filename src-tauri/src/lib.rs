@@ -3,6 +3,36 @@ mod mobile;
 
 use local_ip_address::list_afinet_netifas;
 
+/// Log a formatted message to docspi_divert.log with timestamp.
+fn log_app(level: &str, msg: &str) {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let line = format!("[{}] {} {}\n", now, level, msg);
+    print!("{}", line);
+    let log_file = std::env::temp_dir().join("docspi_divert.log");
+    let _ = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&log_file)
+        .and_then(|f| {
+            use std::io::Write;
+            let mut f = std::io::BufWriter::new(f);
+            f.write_all(line.as_bytes())
+        });
+}
+
+macro_rules! log_info {
+    ($($arg:tt)*) => { log_app("INFO", &format!($($arg)*)); };
+}
+macro_rules! log_warn {
+    ($($arg:tt)*) => { log_app("WARN", &format!($($arg)*)); };
+}
+macro_rules! log_error {
+    ($($arg:tt)*) => { log_app("ERROR", &format!($($arg)*)); };
+}
+
 use std::io::{Read, Write};
 
 use std::net::{IpAddr, TcpListener, TcpStream};
@@ -210,6 +240,14 @@ struct DivertConfig {
 
     fake_sni: String,
 
+    ip_frag_id: i32,
+
+    ip_frag_size: i32,
+
+    fake_hello: bool,
+
+    kill_switch: bool,
+
 }
 
 fn launch_divert_process(config: &DivertConfig) -> Result<(), String> {
@@ -395,6 +433,21 @@ fn launch_divert_process(config: &DivertConfig) -> Result<(), String> {
         if !config.fake_sni.is_empty() {
             args.push("--fake-sni".to_string());
             args.push(config.fake_sni.clone());
+        }
+
+        if config.ip_frag_id > 0 {
+            args.push("--ip-frag-id".to_string());
+            args.push(config.ip_frag_id.to_string());
+        }
+        if config.ip_frag_size > 0 {
+            args.push("--ip-frag-size".to_string());
+            args.push(config.ip_frag_size.to_string());
+        }
+        if config.fake_hello {
+            args.push("--fake-hello".to_string());
+        }
+        if config.kill_switch {
+            args.push("--kill-switch".to_string());
         }
 
         let pid_file = std::env::temp_dir().join("docspi_divert.pid");
@@ -2171,6 +2224,42 @@ fn kill_zombie_sidecar() -> Result<String, String> {
 
 }
 
+fn setup_kill_switch() {
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+        // Block all outbound traffic except essential
+        let _ = Command::new("netsh")
+            .args(&["advfirewall", "firewall", "add", "rule",
+                "name=DocsPI_KillSwitch", "dir=out", "action=block",
+                "enable=yes", "profile=any"])
+            .output();
+        // Allow docspi-proxy.exe through
+        if let Some(exe_dir) = divert_exe_path() {
+            let proxy_path = exe_dir.parent().unwrap_or(std::path::Path::new("")).join("docspi-proxy.exe");
+            let _ = Command::new("netsh")
+                .args(&["advfirewall", "firewall", "add", "rule",
+                    "name=DocsPI_ProxyAllow", "dir=out", "action=allow",
+                    &format!("program=\"{}\"", proxy_path.display()),
+                    "enable=yes", "profile=any"])
+                .output();
+        }
+    }
+}
+
+fn cleanup_kill_switch() {
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+        let _ = Command::new("netsh")
+            .args(&["advfirewall", "firewall", "delete", "rule", "name=DocsPI_KillSwitch"])
+            .output();
+        let _ = Command::new("netsh")
+            .args(&["advfirewall", "firewall", "delete", "rule", "name=DocsPI_ProxyAllow"])
+            .output();
+    }
+}
+
 #[tauri::command]
 fn start_divert_engine(config: DivertConfig) -> Result<(), String> {
 
@@ -2180,6 +2269,10 @@ fn start_divert_engine(config: DivertConfig) -> Result<(), String> {
 
     }
 
+    if config.kill_switch {
+        setup_kill_switch();
+    }
+
     launch_divert_process(&config)
 
 }
@@ -2187,6 +2280,7 @@ fn start_divert_engine(config: DivertConfig) -> Result<(), String> {
 #[tauri::command]
 fn stop_divert_engine() -> Result<(), String> {
 
+    cleanup_kill_switch();
     stop_divert_process();
 
     Ok(())
@@ -3197,6 +3291,10 @@ fn vpn_status() -> mobile::VpnStatus {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+
+    // Initialize log file (clear old one)
+    let _ = std::fs::write(std::env::temp_dir().join("docspi_divert.log"), "");
+    log_info!("DocsPI baslatiliyor...");
 
     platform::init();
 

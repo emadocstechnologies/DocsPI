@@ -1,5 +1,3 @@
-// DocsPI DPI Divert Engine — cross-platform packet processing.
-
 package main
 
 import (
@@ -60,13 +58,12 @@ func startTTLTableCleaner() {
 	}()
 }
 
-// runEngine is the main cross-platform packet processing loop.
 func runEngine(backend PacketBackend, cfg *Config) {
 	startTTLTableCleaner()
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
-	fmt.Printf("[DocsPIDivert] Engine aktif | Mod: %s | AutoTTL: %v | BlockQUIC: %v | WrongChksum: %v | WrongSeq: %v\n",
-		cfg.Mode, cfg.AutoTTL, cfg.BlockQUIC, cfg.WrongChksum, cfg.WrongSeq)
+	fmt.Printf("[DocsPIDivert] Engine aktif | Mod: %s | AutoTTL: %v | BlockQUIC: %v | WrongChksum: %v | WrongSeq: %v | FakeHello: %v | IpFrag: %v\n",
+		cfg.Mode, cfg.AutoTTL, cfg.BlockQUIC, cfg.WrongChksum, cfg.WrongSeq, cfg.FakeHello, cfg.IpFragSize)
 
 	go func() {
 		<-sigCh
@@ -96,7 +93,6 @@ func runEngine(backend PacketBackend, cfg *Config) {
 	}
 }
 
-// processPacket handles a single packet: identifies TLS, applies bypass techniques.
 func processPacket(backend PacketBackend, pkt []byte, cfg *Config) {
 	if pktProto(pkt) != PROTO_TCP {
 		_ = backend.Write(pkt)
@@ -109,13 +105,12 @@ func processPacket(backend PacketBackend, pkt []byte, cfg *Config) {
 		return
 	}
 
-	// Check for QUIC
+	// QUIC blocking
 	if cfg.BlockQUIC && len(pkt) > 0 {
-		// QUIC detection on non-WinDivert platforms
 		if pktProto(pkt) == PROTO_UDP {
 			pay := udpPayload(pkt)
 			if len(pay) >= 1200 && isQUICInitial(pay) {
-				return // drop
+				return
 			}
 			_ = backend.Write(pkt)
 			return
@@ -132,23 +127,41 @@ func processPacket(backend PacketBackend, pkt []byte, cfg *Config) {
 		return
 	}
 
-	// TLS Client Hello detected — DPI bypass
+	// ── TLS Client Hello detected — apply DPI bypass techniques ──
+
+	// 1. IP fragmentation bypass (if configured)
+	if cfg.IpFragSize > 0 {
+		sendIPFragmented(backend, pkt, cfg)
+		return
+	}
+
+	// 2. Fake packets with wrong checksum (using randomized fingerprint)
 	if cfg.WrongChksum {
 		sendFakeWrongChksum(backend, pkt, cfg)
 	}
 
+	// 3. Fake packet with wrong sequence number
 	if cfg.WrongSeq {
 		sendFakeWrongSeq(backend, pkt, cfg)
 	}
 
+	// 4. Auto TTL
 	if cfg.AutoTTL {
 		applyAutoTTL(pkt)
 	}
 
+	// 5. TCP fragmentation + reordering
 	sendFragmented(backend, pkt)
 }
 
 // ── Fake packet senders ──────────────────────────────────────────────
+
+func buildFakePayload(cfg *Config) []byte {
+	if cfg.FakeHello {
+		return buildFakeClientHelloRandomized(cfg.FakeSNI)
+	}
+	return buildFakeClientHello(cfg.FakeSNI)
+}
 
 func sendFakeWrongChksum(backend PacketBackend, pkt []byte, cfg *Config) {
 	ihl := ipv4HeaderLen(pkt)
@@ -158,7 +171,7 @@ func sendFakeWrongChksum(backend PacketBackend, pkt []byte, cfg *Config) {
 		return
 	}
 
-	fakePayload := buildFakeClientHello(cfg.FakeSNI)
+	fakePayload := buildFakePayload(cfg)
 	fake := make([]byte, headerSize+len(fakePayload))
 	copy(fake, pkt[:headerSize])
 	copy(fake[headerSize:], fakePayload)
@@ -167,7 +180,7 @@ func sendFakeWrongChksum(backend PacketBackend, pkt []byte, cfg *Config) {
 	applyFakeTTL(fake)
 	calcChecksums(fake)
 
-	// Flip checksum to create "wrong" checksum packet
+	// Flip checksum to create "wrong checksum" packet
 	if len(fake) >= ihl+18 {
 		chk := binary.BigEndian.Uint16(fake[ihl+16 : ihl+18])
 		binary.BigEndian.PutUint16(fake[ihl+16:ihl+18], chk-1)
@@ -184,7 +197,7 @@ func sendFakeWrongSeq(backend PacketBackend, pkt []byte, cfg *Config) {
 		return
 	}
 
-	fakePayload := buildFakeClientHello(cfg.FakeSNI)
+	fakePayload := buildFakePayload(cfg)
 	fake := make([]byte, headerSize+len(fakePayload))
 	copy(fake, pkt[:headerSize])
 	copy(fake[headerSize:], fakePayload)
@@ -226,6 +239,8 @@ func applyFakeTTL(pkt []byte) {
 	setPktTTL(pkt, fakeTTL)
 }
 
+// ── TCP fragmentation + reorder (GoodbyeDPI-style) ────────────────
+
 func sendFragmented(backend PacketBackend, pkt []byte) {
 	ihl := ipv4HeaderLen(pkt)
 	thl := tcpDataOffset(pkt)
@@ -261,6 +276,98 @@ func sendFragmented(backend PacketBackend, pkt []byte) {
 	// Send fragment 2 first, then fragment 1 (out-of-order delivery)
 	_ = backend.Write(frag2)
 	_ = backend.Write(frag1)
+}
+
+// ── IP fragmentation bypass (new) ─────────────────────────────────
+
+// sendIPFragmented fragments the TLS ClientHello at the IP layer,
+// splitting it into two IP fragments with custom IP ID and offset.
+// This confuses DPI boxes that don't reassemble IP fragments properly.
+func sendIPFragmented(backend PacketBackend, pkt []byte, cfg *Config) {
+	ihl := ipv4HeaderLen(pkt)
+	thl := tcpDataOffset(pkt)
+	headerSize := ihl + thl
+	payload := pkt[headerSize:]
+
+	if len(payload) < 4 || headerSize+4 > len(pkt) {
+		calcChecksums(pkt)
+		_ = backend.Write(pkt)
+		return
+	}
+
+	// Original IP ID
+	origIPID := binary.BigEndian.Uint16(pkt[4:6])
+
+	// Custom IP ID for fragment bypass (random or configured)
+	var fragIPID uint16
+	if cfg.IpFragId > 0 {
+		fragIPID = uint16(cfg.IpFragId)
+	} else {
+		b := make([]byte, 2)
+		// Use a deterministic but varying ID based on original IP ID
+		fragIPID = origIPID + 1000
+		_ = b
+	}
+
+	fragSize := cfg.IpFragSize
+	if fragSize <= 0 || fragSize > 1400 {
+		fragSize = 512 // default fragment size
+	}
+
+	// How many bytes of the original payload fit in the first fragment
+	firstFragDataLen := fragSize
+	if firstFragDataLen > len(payload) {
+		firstFragDataLen = len(payload)
+	}
+
+	// First fragment: IP header + TCP header + partial payload
+	frag1 := make([]byte, headerSize+firstFragDataLen)
+	copy(frag1, pkt[:headerSize])
+	copy(frag1[headerSize:], payload[:firstFragDataLen])
+
+	// Update IP header for fragment 1
+	// Set More Fragments flag (0x2000), custom IP ID
+	flagsOffset := (0x2000) | 0 // MF=1, offset=0
+	binary.BigEndian.PutUint16(frag1[4:6], fragIPID)
+	binary.BigEndian.PutUint16(frag1[2:4], uint16(len(frag1)))
+	binary.BigEndian.PutUint16(frag1[6:8], uint16(flagsOffset))
+
+	// Clear IP checksum and recalculate
+	frag1[10] = 0
+	frag1[11] = 0
+	ipSum := checksum(frag1[:ihl])
+	binary.BigEndian.PutUint16(frag1[10:12], ipSum)
+
+	// Second fragment: IP header + remaining payload
+	remaining := payload[firstFragDataLen:]
+	if len(remaining) > 0 {
+		frag2 := make([]byte, ihl+len(remaining))
+		copy(frag2, pkt[:ihl])
+		copy(frag2[ihl:], remaining)
+
+		// Update IP header for fragment 2
+		// Clear MF flag, set offset = firstFragDataLen / 8
+		fragOffset := uint16(firstFragDataLen / 8)
+		flagsOffset2 := fragOffset
+		binary.BigEndian.PutUint16(frag2[4:6], fragIPID+1)
+		binary.BigEndian.PutUint16(frag2[2:4], uint16(len(frag2)))
+		binary.BigEndian.PutUint16(frag2[6:8], uint16(flagsOffset2))
+
+		// Clear IP checksum and recalculate
+		frag2[10] = 0
+		frag2[11] = 0
+		ipSum2 := checksum(frag2[:ihl])
+		binary.BigEndian.PutUint16(frag2[10:12], ipSum2)
+
+		// Send fragment 2 first (out-of-order), then fragment 1
+		// DPI sees fragment 2 (doesn't know it's a continuation)
+		// and may not flag it — real client reassembles correctly
+		_ = backend.Write(frag2)
+		_ = backend.Write(frag1)
+	} else {
+		// No second fragment needed, send fragment 1 directly
+		_ = backend.Write(frag1)
+	}
 }
 
 // ── TTL management ──────────────────────────────────────────────────
@@ -346,7 +453,7 @@ func isQUICInitial(payload []byte) bool {
 		return false
 	}
 	version := binary.BigEndian.Uint32(payload[1:5])
-	return version == 0x00000001 || version == 0xff00001d || version == 0x1 ||
+	return version == 0x00000001 || version == 0xff00001d || version == 0xff00001d ||
 		version == 0x6b3343cf || version == 0xff000020 || version == 0xff00001e
 }
 
@@ -437,6 +544,3 @@ func setPktTTL(pkt []byte, ttl uint8) {
 		pkt[8] = ttl
 	}
 }
-
-
-

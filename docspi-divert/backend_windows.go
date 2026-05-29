@@ -175,6 +175,9 @@ func main() {
 	proxyPort := flag.Int("proxy-port", 0, "SpoofDPI proxy port (super mode)")
 	pidFile := flag.String("pid-file", "", "write PID to this file")
 	fakeSNI := flag.String("fake-sni", "www.google.com", "fake SNI for strong mode")
+	ipFragId := flag.Int("ip-frag-id", 0, "custom IP ID for fragmentation (0=auto)")
+	ipFragSize := flag.Int("ip-frag-size", 0, "IP fragment size in bytes (0=off)")
+	fakeHello := flag.Bool("fake-hello", false, "randomized TLS fingerprint injection")
 	flag.Parse()
 
 	if *pidFile != "" {
@@ -203,6 +206,9 @@ func main() {
 		DNSAddr:     *dnsAddr,
 		ProxyPort:   *proxyPort,
 		FakeSNI:     *fakeSNI,
+		IpFragId:    *ipFragId,
+		IpFragSize:  *ipFragSize,
+		FakeHello:   *fakeHello,
 	}
 
 	backend := newBackend(cfg)
