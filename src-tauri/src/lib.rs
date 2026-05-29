@@ -1930,14 +1930,17 @@ fn set_system_proxy(port: u16, enable_winhttp: bool, custom_bypass_domains: Vec<
 #[tauri::command]
 fn update_tray_tooltip(app: tauri::AppHandle, tooltip: String) -> Result<(), String> {
 
-    let sanitized: String = tooltip.chars().take(128).collect();
+    #[cfg(desktop)]
+    {
+        let sanitized: String = tooltip.chars().take(128).collect();
 
-    if let Some(tray) = app.tray_by_id("tray") {
+        if let Some(tray) = app.tray_by_id("tray") {
 
-        tray.set_tooltip(Some(sanitized))
+            tray.set_tooltip(Some(sanitized))
 
-            .map_err(|e| e.to_string())?;
+                .map_err(|e| e.to_string())?;
 
+        }
     }
 
     Ok(())
@@ -2465,23 +2468,8 @@ fn check_autostart_admin() -> bool {
 
 }
 
-#[derive(serde::Serialize)]
-struct IspInfo {
-
-    name: String,
-
-    display_name: String,
-
-    connection_type: String,
-
-    region: String,
-
-    dns_servers: Vec<String>,
-
-}
-
 #[tauri::command]
-fn get_isp_info() -> IspInfo {
+fn get_isp_info() -> platform::IspInfo {
 
     #[cfg(target_os = "windows")]
     {
@@ -2666,7 +2654,7 @@ fn get_isp_info() -> IspInfo {
 
         };
 
-        IspInfo { name, display_name: display_name.to_string(), connection_type, region, dns_servers }
+        platform::IspInfo { name, display_name: display_name.to_string(), connection_type, region, dns_servers }
 
     }
 
@@ -2799,7 +2787,7 @@ struct AutoConnectConfig {
 
     network_mode: String,
 
-    isp: IspInfo,
+    isp: platform::IspInfo,
 
     dpi: DpiDetectionResult,
 
@@ -3115,7 +3103,7 @@ pub fn run() {
 
     platform::get().instance.ensure_single_instance("DocsPI");
 
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
 
         .manage(PacServerState::default())
 
@@ -3366,10 +3354,12 @@ pub fn run() {
 
             Ok(())
 
-        })
+        });
 
-        .plugin(tauri_plugin_autostart::Builder::new().build())
+        #[cfg(not(any(target_os = "android", target_os = "ios")))]
+        let builder = builder.plugin(tauri_plugin_autostart::Builder::new().build());
 
+        builder
         .plugin(tauri_plugin_process::init())
 
         .plugin(tauri_plugin_opener::init())
