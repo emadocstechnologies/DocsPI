@@ -47,3 +47,6 @@ yarn-error.log*
 # Temporary files
 tmp/
 temp/
+
+# Android SDK local config (machine-specific)
+local.properties
