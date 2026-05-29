@@ -10,8 +10,6 @@ pub struct VpnConfig {
 #[derive(Debug, Clone, Serialize)]
 pub struct VpnStatus {
     pub running: bool,
-    pub bytes_rx: u64,
-    pub bytes_tx: u64,
 }
 
 // ---------------------------------------------------------------------------
@@ -86,8 +84,6 @@ mod android_bridge {
 
         VpnStatus {
             running: kotlin_running,
-            bytes_rx: 0,
-            bytes_tx: 0,
         }
     }
 
@@ -111,7 +107,7 @@ mod desktop_stub {
         Ok(())
     }
     pub fn vpn_status_impl() -> VpnStatus {
-        VpnStatus { running: false, bytes_rx: 0, bytes_tx: 0 }
+        VpnStatus { running: false }
     }
 }
 

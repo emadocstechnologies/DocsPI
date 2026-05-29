@@ -3,16 +3,9 @@ import { invoke } from '@tauri-apps/api/core';
 import { Command } from "@tauri-apps/plugin-shell";
 import { DNS_MAP, DOH_MAP, RETRY_DELAYS, APP, DPI_TIMEOUTS } from '../constants';
 
-let cachedIsAndroid = null;
-async function probeAndroidPlatform() {
-  if (cachedIsAndroid !== null) return cachedIsAndroid;
-  try {
-    await invoke('vpn_status');
-    cachedIsAndroid = true;
-  } catch {
-    cachedIsAndroid = false;
-  }
-  return cachedIsAndroid;
+function probeAndroidPlatform() {
+  if (typeof navigator === 'undefined' || !navigator.userAgent) return false;
+  return navigator.userAgent.includes('Android');
 }
 
 export function useEngine({ 
@@ -45,26 +38,16 @@ export function useEngine({
   const fatalErrorRef = useRef(false);
   const isRetrying = useRef(false);
   const [vpnActive, setVpnActive] = useState(false);
-  const [vpnBytesRx, setVpnBytesRx] = useState(0);
-  const [vpnBytesTx, setVpnBytesTx] = useState(0);
   const vpnPollRef = useRef(null);
-  const [androidPlatform, setAndroidPlatform] = useState(null);
-
-  useEffect(() => {
-    probeAndroidPlatform().then(setAndroidPlatform);
-  }, []);
+  const androidPlatform = probeAndroidPlatform();
 
   useEffect(() => {
     if (vpnActive) {
       const poll = setInterval(async () => {
         try {
           const status = await invoke('vpn_status');
-          if (status) {
-            setVpnBytesRx(status.bytes_rx || 0);
-            setVpnBytesTx(status.bytes_tx || 0);
-            if (!status.running) {
-              vpnStopped();
-            }
+          if (status && !status.running) {
+            vpnStopped();
           }
         } catch (e) {
           console.warn('vpn_status poll error:', e);
@@ -84,18 +67,16 @@ export function useEngine({
 
   const vpnStopped = () => {
     setVpnActive(false);
-    setVpnBytesRx(0);
-    setVpnBytesTx(0);
     setIsConnected(false);
     setConnectedAt(null);
     updateTrayTooltip('disconnected');
-    notifyUser('DocsPI', t?.logDisconnected || 'VPN baglantisi kesildi', 'disconnect');
-    if (addLog) addLog(t?.logDisconnected || 'VPN baglantisi kesildi', 'warn');
+    notifyUser('DocsPI', t?.logDisconnected || 'VPN disconnected', 'disconnect');
+    if (addLog) addLog(t?.logDisconnected || 'VPN disconnected', 'warn');
   };
 
   const startAndroidVpn = useCallback(async () => {
     updateTrayTooltip('connecting');
-    if (addLog) addLog(t?.logStartingVpn || 'VPN baslatiliyor...', 'info');
+    if (addLog) addLog(t?.logStartingVpn || 'Starting VPN...', 'info');
     try {
       await invoke('start_vpn', {
         config: {
@@ -112,14 +93,14 @@ export function useEngine({
       setConnectedAt(Date.now());
       setIsProcessing(false);
       updateTrayTooltip('connected');
-      notifyUser('DocsPI', t?.logVpnConnected || 'VPN aktif', 'connect');
-      if (addLog) addLog(t?.logVpnConnected || 'VPN basariyla baslatildi', 'success');
+      notifyUser('DocsPI', t?.logVpnConnected || 'VPN connection active', 'connect');
+      if (addLog) addLog(t?.logVpnConnected || 'VPN started successfully', 'success');
     } catch (e) {
       setVpnActive(false);
       setIsConnected(false);
       setIsProcessing(false);
       updateTrayTooltip('disconnected');
-      if (addLog) addLog(t?.logVpnStartError?.(e) || `VPN baslatilamadi: ${e}`, 'error');
+      if (addLog) addLog(t?.logVpnStartError?.(e) || `VPN start failed: ${e}`, 'error');
     }
   }, [addLog, configRef, notifyUser, setConnectedAt, setIsConnected, setIsProcessing, t, updateTrayTooltip]);
 
@@ -770,8 +751,6 @@ export function useEngine({
     userIntentDisconnect,
     androidPlatform,
     vpnActive,
-    vpnBytesRx,
-    vpnBytesTx,
     startAndroidVpn,
     stopAndroidVpn,
   };

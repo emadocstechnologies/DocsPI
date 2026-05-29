@@ -296,8 +296,6 @@ function AppContent() {
     userIntentDisconnect,
     androidPlatform,
     vpnActive,
-    vpnBytesRx,
-    vpnBytesTx,
     stopAndroidVpn,
   } = useEngine({
     configRef,
