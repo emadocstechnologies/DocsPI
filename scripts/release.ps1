@@ -121,3 +121,5 @@ Write-Host "   Dosya: DocsPI-$version-win64.zip ($zipSize MB)" -ForegroundColor 
 Write-Host ("=" * 50) -ForegroundColor Cyan
 
 // Commit: feat: add release automation script [132232]
+
+// feat: add release automation [132608]
