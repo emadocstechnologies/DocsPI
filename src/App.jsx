@@ -584,7 +584,7 @@ function AppContent() {
 
   // ISP Profile Auto-Selection
   useEffect(() => {
-    if (!detectedIsp || !showFirstRunISS) return;
+    if (!detectedIsp) return;
     const ispProfileMap = {
       turktelekom: 'heavy', vodafone: 'heavy', kablonet: 'heavy',
       superonline: 'heavy', milenicom: 'heavy', turknet: 'light',
@@ -596,7 +596,7 @@ function AppContent() {
         updateConfig({ selectedIspProfile: profileId, dpiMethod: profile.mode, httpsChunkSize: profile.chunk });
       }
     }
-  }, [detectedIsp, showFirstRunISS]);
+  }, [detectedIsp]);
 
   useEffect(() => {
     // Initial cleanup on mount
