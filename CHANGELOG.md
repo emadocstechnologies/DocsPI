@@ -96,3 +96,5 @@ Format: [Keep a Changelog](https://keepachangelog.com/tr/1.0.0/)
 - Proxy backup/restore
 
 // Commit: feat: add CHANGELOG.md documentation [132231]
+
+// feat: add CHANGELOG.md [132608]
