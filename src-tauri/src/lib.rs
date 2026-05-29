@@ -2920,6 +2920,14 @@ fn get_driver_info() -> serde_json::Value {
 
     let version = if installed { "2.2.2" } else { "N/A" };
 
+    let driver_type = if cfg!(target_os = "windows") {
+        "WinDivert"
+    } else if cfg!(target_os = "linux") {
+        "nfqueue/raw socket"
+    } else {
+        "VpnService"
+    };
+
     serde_json::json!({
 
         "installed": installed,
@@ -2928,7 +2936,7 @@ fn get_driver_info() -> serde_json::Value {
 
         "minimum_required": "2.2.0",
 
-        "type": "WinDivert"
+        "type": driver_type
 
     })
 

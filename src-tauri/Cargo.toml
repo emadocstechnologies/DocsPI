@@ -2,8 +2,8 @@
 name = "DocsPI"
 version = "1.0.0"
 description = "DocsPI — DarknesDPI'nin gelismis surumu. DPI bypass araci."
-authors = ["Shencim", "aydocs"]
-edition = "2021"
+authors = ["aydocs"]
+edition = "2024"
 
 [lib]
 name = "docspi_tauri_lib"

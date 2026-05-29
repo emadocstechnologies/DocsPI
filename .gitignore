@@ -36,6 +36,7 @@ Thumbs.db
 *.app
 *.dmg
 *.pdb
+docspi-divert/docspi-divert
 
 # Logs
 logs/

@@ -15,107 +15,97 @@ pub struct VpnStatus {
 }
 
 // ---------------------------------------------------------------------------
-// Android — bridges to DocsPiVpnService via Tauri JNI
+// Android — bridges to DocsPiVpnService via JNI
 // ---------------------------------------------------------------------------
 
 #[cfg(target_os = "android")]
 mod android_bridge {
     use super::*;
+    use jni::JNIEnv;
     use std::sync::atomic::{AtomicBool, Ordering};
 
     static VPN_RUNNING: AtomicBool = AtomicBool::new(false);
 
+    /// Get the JNI environment from the current thread
+    fn with_jni<F, R>(f: F) -> Result<R, String>
+    where
+        F: FnOnce(&mut JNIEnv) -> Result<R, String>,
+    {
+        let jvm = jni::JavaVM::current().map_err(|e| format!("JVM::current: {}", e))?;
+        let mut env = jvm
+            .attach_current_thread()
+            .map_err(|e| format!("attach: {}", e))?;
+        f(&mut env)
+    }
+
     pub fn start_vpn_impl(config: VpnConfig) -> Result<(), String> {
-        // In production, this calls DocsPiVpnService.startVpn() via
-        // tauri::android::current_activity() JNI bridge.
-        // Currently scaffolded for the native build pipeline.
-        let _ = config;
-        VPN_RUNNING.store(true, Ordering::Relaxed);
-        Ok(())
+        with_jni(|env| {
+            let cls = env
+                .find_class("com/docspi/DocsPIApp")
+                .map_err(|e| format!("find_class: {}", e))?;
+
+            let result = env.call_static_method(
+                cls,
+                "startVpn",
+                "()Z",
+                &[],
+            );
+
+            match result {
+                Ok(val) if val.z().unwrap_or(false) => {
+                    VPN_RUNNING.store(true, Ordering::Relaxed);
+                    Ok(())
+                }
+                Ok(_) => Err("VpnService.startVpn returned false".into()),
+                Err(e) => Err(format!("JNI call failed: {}", e)),
+            }
+        })
     }
 
     pub fn stop_vpn_impl() -> Result<(), String> {
-        VPN_RUNNING.store(false, Ordering::Relaxed);
-        Ok(())
+        with_jni(|env| {
+            let cls = env
+                .find_class("com/docspi/DocsPIApp")
+                .map_err(|e| format!("find_class: {}", e))?;
+
+            let _ = env.call_static_method(cls, "stopVpn", "()V", &[]);
+
+            VPN_RUNNING.store(false, Ordering::Relaxed);
+            Ok(())
+        })
     }
 
     pub fn vpn_status_impl() -> VpnStatus {
+        let kotlin_running = with_jni(|env| {
+            let cls = env
+                .find_class("com/docspi/DocsPIApp")?;
+            let result = env.call_static_method(cls, "isVpnActive", "()Z", &[])?;
+            Ok(result.z().unwrap_or(false))
+        })
+        .unwrap_or(false);
+
         VpnStatus {
-            running: VPN_RUNNING.load(Ordering::Relaxed),
+            running: kotlin_running,
             bytes_rx: 0,
             bytes_tx: 0,
         }
     }
+
 }
 
 #[cfg(target_os = "android")]
 pub use android_bridge::*;
 
 // ---------------------------------------------------------------------------
-// iOS — bridges to PacketTunnelProvider via C FFI
-// ---------------------------------------------------------------------------
-
-#[cfg(target_os = "ios")]
-mod ios_bridge {
-    use super::*;
-    use std::sync::atomic::{AtomicBool, Ordering};
-
-    static VPN_RUNNING: AtomicBool = AtomicBool::new(false);
-
-    extern "C" {
-        fn docspi_start_vpn(
-            dns: *const std::os::raw::c_char,
-            proxy_port: u16,
-            mode: *const std::os::raw::c_char,
-        ) -> bool;
-        fn docspi_stop_vpn();
-        fn docspi_vpn_running() -> bool;
-    }
-
-    pub fn start_vpn_impl(config: VpnConfig) -> Result<(), String> {
-        let dns_c =
-            std::ffi::CString::new(config.dns).map_err(|e| format!("CString: {}", e))?;
-        let mode_c =
-            std::ffi::CString::new(config.bypass_mode).map_err(|e| format!("CString: {}", e))?;
-        unsafe {
-            if docspi_start_vpn(dns_c.as_ptr(), config.proxy_port, mode_c.as_ptr()) {
-                VPN_RUNNING.store(true, Ordering::Relaxed);
-                Ok(())
-            } else {
-                Err("VPN start returned false".to_string())
-            }
-        }
-    }
-
-    pub fn stop_vpn_impl() -> Result<(), String> {
-        unsafe { docspi_stop_vpn() }
-        VPN_RUNNING.store(false, Ordering::Relaxed);
-        Ok(())
-    }
-
-    pub fn vpn_status_impl() -> VpnStatus {
-        let running = unsafe { docspi_vpn_running() };
-        VpnStatus {
-            running: running || VPN_RUNNING.load(Ordering::Relaxed),
-            bytes_rx: 0,
-            bytes_tx: 0,
-        }
-    }
-}
-
-#[cfg(target_os = "ios")]
-pub use ios_bridge::*;
-
-// ---------------------------------------------------------------------------
 // Desktop stubs
 // ---------------------------------------------------------------------------
 
-#[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[cfg(not(target_os = "android"))]
 mod desktop_stub {
     use super::*;
 
     pub fn start_vpn_impl(_config: VpnConfig) -> Result<(), String> {
-        Err("VPN is only available on Android/iOS builds".to_string())
+        Err("VPN is only available on Android".to_string())
     }
     pub fn stop_vpn_impl() -> Result<(), String> {
         Ok(())
@@ -125,5 +115,5 @@ mod desktop_stub {
     }
 }
 
-#[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[cfg(not(target_os = "android"))]
 pub use desktop_stub::*;
