@@ -13,6 +13,7 @@
     "build": "npm run update-proxy-icon && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
+    "test": "vitest run",
     "prebuild": "node version-bump.js",
     "update-proxy-icon": "node change-icon.js",
     "copy-proxy": "node scripts/copy-proxy.cjs",
@@ -40,6 +41,7 @@
     "@vitejs/plugin-react": "^4.6.0",
     "png-to-ico": "^3.0.1",
     "rcedit": "^5.0.2",
-    "vite": "^7.0.4"
+    "vite": "^7.0.4",
+    "vitest": "^4.1.7"
   }
 }

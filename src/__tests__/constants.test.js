@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { VALID_CHUNK_SIZES, VALID_DPI_METHODS, DEFAULT_CHUNKS, DNS_MAP, DOH_MAP } from '../constants';
+import { DNS_MAP, DOH_MAP } from '../constants';
+import { VALID_CHUNK_SIZES, VALID_DPI_METHODS, DEFAULT_CHUNKS } from '../profiles';
 
 describe('constants.js', () => {
   describe('DNS_MAP', () => {
